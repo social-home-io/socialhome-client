@@ -1,4 +1,4 @@
-"""Tests for :mod:`pysocialhome_client.client`.
+"""Tests for :mod:`socialhome_client.client`.
 
 Each HTTP method is stubbed with :mod:`aioresponses`; we never touch
 the network.
@@ -10,7 +10,7 @@ import aiohttp
 import pytest
 from aioresponses import aioresponses
 
-from pysocialhome_client import (
+from socialhome_client import (
     Calendar,
     CalendarEvent,
     Conversation,

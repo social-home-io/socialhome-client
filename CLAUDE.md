@@ -1,4 +1,4 @@
-# CLAUDE.md — pysocialhome-client
+# CLAUDE.md — socialhome-client
 
 Instruction file for Claude Code. Read before editing.
 
@@ -33,7 +33,7 @@ Spec: §6 of `spec_work.md` in the Social Home meta-repo.
 ## Layout
 
 ```
-pysocialhome_client/
+socialhome_client/
   __init__.py          # public re-exports
   client.py            # SocialHomeClient
   ws_manager.py        # SocialHomeWsManager
@@ -47,8 +47,8 @@ tests/                 # pytest tree mirroring the module tree
 ```sh
 pip install -e .[dev]
 pytest                       # ≥85 % branch coverage gate
-ruff check pysocialhome_client/ tests/
-mypy pysocialhome_client/
+ruff check socialhome_client/ tests/
+mypy socialhome_client/
 ```
 
 Tests use `aioresponses` to stub HTTP and a fake `aiohttp.ClientWebSocketResponse`

@@ -29,7 +29,7 @@ from .models import (
 from .ws_manager import SocialHomeWsManager
 
 try:
-    __version__ = version("pysocialhome-client")
+    __version__ = version("socialhome-client")
 except PackageNotFoundError:
     __version__ = "0.0.0+unknown"
 

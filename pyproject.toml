@@ -1,5 +1,5 @@
 [project]
-name = "pysocialhome-client"
+name = "socialhome-client"
 dynamic = ["version"]
 description = "Async HTTP + WebSocket client for Social Home, used by the Home Assistant integration."
 requires-python = ">=3.13"
@@ -37,9 +37,9 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/social-home-io/pysocialhome-client"
-Repository = "https://github.com/social-home-io/pysocialhome-client"
-Issues = "https://github.com/social-home-io/pysocialhome-client/issues"
+Homepage = "https://github.com/social-home-io/socialhome-client"
+Repository = "https://github.com/social-home-io/socialhome-client"
+Issues = "https://github.com/social-home-io/socialhome-client/issues"
 
 [build-system]
 requires = ["hatchling", "hatch-vcs"]
@@ -52,10 +52,10 @@ build-backend = "hatchling.build"
 source = "vcs"
 
 [tool.hatch.build.hooks.vcs]
-version-file = "pysocialhome_client/_version.py"
+version-file = "socialhome_client/_version.py"
 
 [tool.hatch.build.targets.wheel]
-packages = ["pysocialhome_client"]
+packages = ["socialhome_client"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
@@ -63,7 +63,7 @@ testpaths = ["tests"]
 
 [tool.coverage.run]
 branch = true
-source = ["pysocialhome_client"]
+source = ["socialhome_client"]
 
 [tool.coverage.report]
 # Coverage for the low-level helpers and the reconnect loop is
@@ -90,4 +90,4 @@ python_version = "3.13"
 strict = true
 warn_unused_ignores = true
 warn_redundant_casts = true
-files = ["pysocialhome_client"]
+files = ["socialhome_client"]

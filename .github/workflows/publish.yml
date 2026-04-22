@@ -37,7 +37,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/p/pysocialhome-client
+      url: https://pypi.org/p/socialhome-client
     steps:
       - uses: actions/download-artifact@v4
         with:

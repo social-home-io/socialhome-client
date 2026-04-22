@@ -1,8 +1,8 @@
-"""Tests for :mod:`pysocialhome_client.exceptions`."""
+"""Tests for :mod:`socialhome_client.exceptions`."""
 
 from __future__ import annotations
 
-from pysocialhome_client import SHAuthError, SHClientError, SHNotFoundError
+from socialhome_client import SHAuthError, SHClientError, SHNotFoundError
 
 
 def test_sh_client_error_carries_status():
