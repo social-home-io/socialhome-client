@@ -1,8 +1,9 @@
 """Reconnecting WebSocket subscription manager.
 
-Spec §6.2. The HA integration uses this for realtime updates —
-shopping-list changes, calendar edits, unread-count changes — so the
-entities refresh without relying on the 60 s coordinator poll.
+Spec §6.2. Optional realtime channel for consumers that want
+sub-poll-interval updates (shopping-list edits, calendar changes,
+unread-count changes). The HA integration v1 sticks to the REST
+coordinator and does not instantiate this — a future version may.
 
 Design:
 
