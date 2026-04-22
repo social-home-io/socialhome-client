@@ -1,4 +1,4 @@
-# AGENTS.md — pysocialhome-client
+# AGENTS.md — socialhome-client
 
 AI agent instruction file. Read before editing. Canonical spec:
 `spec_work.md` §6 in the Social Home meta-repo.
@@ -29,5 +29,5 @@ AI agent instruction file. Read before editing. Canonical spec:
 - Changed the exception hierarchy? Update CLAUDE.md's "Hard rules".
 
 ### File locations
-- Library code: `pysocialhome_client/`
+- Library code: `socialhome_client/`
 - Tests: `tests/` (mirrors the module tree)

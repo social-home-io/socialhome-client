@@ -1,4 +1,4 @@
-"""Tests for :mod:`pysocialhome_client.models`.
+"""Tests for :mod:`socialhome_client.models`.
 
 ``from_api`` classmethods are the only behaviour worth testing —
 they defend the public dataclasses from API shape drift (missing
@@ -7,7 +7,7 @@ fields, wrong types, nulls).
 
 from __future__ import annotations
 
-from pysocialhome_client import (
+from socialhome_client import (
     Calendar,
     CalendarEvent,
     Conversation,

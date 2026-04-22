@@ -25,7 +25,7 @@ jobs:
         with:
           python-version: "3.13"
       - run: pip install -e .[dev]
-      - run: mypy pysocialhome_client/
+      - run: mypy socialhome_client/
 
   test:
     runs-on: ubuntu-latest
@@ -39,4 +39,4 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - run: pip install -e .[dev]
-      - run: pytest --cov=pysocialhome_client --cov-report=xml --cov-fail-under=85
+      - run: pytest --cov=socialhome_client --cov-report=xml --cov-fail-under=85

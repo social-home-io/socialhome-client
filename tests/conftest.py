@@ -1,4 +1,4 @@
-"""Shared test fixtures for pysocialhome-client."""
+"""Shared test fixtures for socialhome-client."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from collections.abc import AsyncIterator
 
 import pytest
 
-from pysocialhome_client import SocialHomeClient
+from socialhome_client import SocialHomeClient
 
 
 @pytest.fixture

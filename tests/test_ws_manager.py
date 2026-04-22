@@ -1,4 +1,4 @@
-"""Tests for :mod:`pysocialhome_client.ws_manager`.
+"""Tests for :mod:`socialhome_client.ws_manager`.
 
 We fake :class:`aiohttp.ClientWebSocketResponse` with an in-memory
 queue. That keeps the tests deterministic and free of network I/O
@@ -17,8 +17,8 @@ from unittest.mock import patch
 import aiohttp
 import pytest
 
-from pysocialhome_client import SocialHomeClient, SocialHomeWsManager
-from pysocialhome_client import ws_manager as ws_mod
+from socialhome_client import SocialHomeClient, SocialHomeWsManager
+from socialhome_client import ws_manager as ws_mod
 
 
 class _FakeWSMsg:

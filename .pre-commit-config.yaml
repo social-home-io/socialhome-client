@@ -1,4 +1,4 @@
-# Pre-commit hooks for pysocialhome-client.
+# Pre-commit hooks for socialhome-client.
 #
 # Install:   pip install pre-commit && pre-commit install
 # Run once:  pre-commit run --all-files
@@ -42,9 +42,9 @@ repos:
     rev: v1.13.0
     hooks:
       - id: mypy
-        name: mypy (pysocialhome_client, repo-wide)
+        name: mypy (socialhome_client, repo-wide)
         additional_dependencies:
           - "aiohttp>=3.9"
-        args: ["--config-file=pyproject.toml", "pysocialhome_client/"]
+        args: ["--config-file=pyproject.toml", "socialhome_client/"]
         always_run: true
         pass_filenames: false
