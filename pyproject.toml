@@ -1,6 +1,6 @@
 [project]
 name = "pysocialhome-client"
-version = "1.0.0"
+dynamic = ["version"]
 description = "Async HTTP + WebSocket client for Social Home, used by the Home Assistant integration."
 requires-python = ">=3.13"
 # Kept at Python 3.13 (not 3.14) for Home Assistant compatibility —
@@ -42,8 +42,17 @@ Repository = "https://github.com/social-home-io/pysocialhome-client"
 Issues = "https://github.com/social-home-io/pysocialhome-client/issues"
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
+
+# CalVer versioning driven by git tags (no ``v`` prefix — tags look
+# like ``2026.4.22`` or ``2026.4.22.1``). ``hatch-vcs`` reads the
+# latest tag on build and writes it into ``_version.py``.
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "pysocialhome_client/_version.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["pysocialhome_client"]

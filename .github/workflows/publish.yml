@@ -2,7 +2,10 @@ name: Publish to PyPI
 
 on:
   push:
-    tags: ["v*.*.*"]
+    # CalVer tags without a ``v`` prefix — e.g. 2026.4.22,
+    # 2026.4.22.1. The first segment is always the 4-digit year so
+    # the ``[0-9]*`` prefix is unambiguous.
+    tags: ["[0-9]*"]
   release:
     types: [published]
 
@@ -15,6 +18,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # hatch-vcs needs the tag's full history to resolve the
+          # version — shallow clones produce ``0.0.1.dev0+…``.
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"

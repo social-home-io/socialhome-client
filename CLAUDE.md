@@ -56,5 +56,14 @@ for WS. No real network. No sockets.
 
 ## Releasing
 
-Bump `version` in `pyproject.toml`, tag `v$X.$Y.$Z`, push. GitHub
-Actions publishes to PyPI via OIDC trusted publishing.
+CalVer without a ``v`` prefix — tags look like ``2026.4.22`` or
+``2026.4.22.1`` for same-day patch releases. The version in
+``pyproject.toml`` is dynamic (``hatch-vcs``); do not edit it.
+
+```sh
+git tag 2026.4.22
+git push origin 2026.4.22
+```
+
+GitHub Actions picks up the tag, builds the wheel + sdist, and
+publishes to PyPI via OIDC trusted publishing.
