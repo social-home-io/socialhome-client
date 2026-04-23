@@ -6,7 +6,8 @@ Public surface — the HA integration imports only these names:
 - :class:`SocialHomeWsManager` — reconnecting WebSocket (spec §6.2).
 - Model dataclasses — :class:`User`, :class:`ShoppingItem`,
   :class:`Calendar`, :class:`CalendarEvent`, :class:`Space`,
-  :class:`Conversation`, :class:`UnreadSummary` (spec §6.3).
+  :class:`Conversation`, :class:`SpaceBot`, :class:`SpaceBotWithToken`,
+  :class:`UnreadSummary` (spec §6.3).
 - Exception hierarchy — :class:`SHClientError`, :class:`SHAuthError`,
   :class:`SHNotFoundError`.
 """
@@ -23,6 +24,8 @@ from .models import (
     Conversation,
     ShoppingItem,
     Space,
+    SpaceBot,
+    SpaceBotWithToken,
     UnreadSummary,
     User,
 )
@@ -44,6 +47,8 @@ __all__ = [
     "SocialHomeClient",
     "SocialHomeWsManager",
     "Space",
+    "SpaceBot",
+    "SpaceBotWithToken",
     "UnreadSummary",
     "User",
     "__version__",
