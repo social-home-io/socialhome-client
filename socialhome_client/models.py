@@ -7,7 +7,7 @@ Every public :class:`SocialHomeClient` method returns one of these
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Literal
 
 
 @dataclass(slots=True, frozen=True)
@@ -91,7 +91,10 @@ class Space:
     id: str
     name: str
     emoji: str | None = None
-    notify_enabled: bool = False
+    # True when an admin has opted this space in to receiving posts from
+    # Home Assistant bots via the bot-bridge. Formerly called
+    # ``notify_enabled``; renamed to match the bot-personas feature.
+    bot_enabled: bool = False
 
     @classmethod
     def from_api(cls, data: dict[str, Any]) -> Space:
@@ -99,7 +102,7 @@ class Space:
             id=data["id"],
             name=data["name"],
             emoji=data.get("emoji"),
-            notify_enabled=bool(data.get("notify_enabled", False)),
+            bot_enabled=bool(data.get("bot_enabled", False)),
         )
 
 
@@ -108,7 +111,11 @@ class Conversation:
     id: str
     display_name: str
     type: str  # "dm" | "group"
-    notify_enabled: bool = False
+    # True when at least one participant has opted this DM in to receiving
+    # system-authored posts from Home Assistant automations. DMs have no
+    # named bots — the 1:1 context makes a generic "Home Assistant"
+    # sender adequate, so this is a simple on/off.
+    bot_enabled: bool = False
 
     @classmethod
     def from_api(cls, data: dict[str, Any]) -> Conversation:
@@ -116,7 +123,79 @@ class Conversation:
             id=data["id"],
             display_name=data["display_name"],
             type=data.get("type", "dm"),
-            notify_enabled=bool(data.get("notify_enabled", False)),
+            bot_enabled=bool(data.get("bot_enabled", False)),
+        )
+
+
+@dataclass(slots=True, frozen=True)
+class SpaceBot:
+    """A named bot persona registered against a space.
+
+    Returned by :meth:`SocialHomeClient.bot.list` and
+    :meth:`SocialHomeClient.bot.update`. *Never* carries the Bearer
+    token — that only surfaces on :class:`SpaceBotWithToken`, so any
+    object of type :class:`SpaceBot` is safe to log.
+    """
+
+    bot_id: str
+    space_id: str
+    # "space" = admin-curated shared bot; "member" = personal automation.
+    scope: Literal["space", "member"]
+    slug: str
+    name: str
+    icon: str
+    created_by: str
+    created_at: str
+
+    @classmethod
+    def from_api(cls, data: dict[str, Any]) -> SpaceBot:
+        scope = data.get("scope", "member")
+        if scope not in ("space", "member"):
+            # Defensive narrowing — the API only ever sends these two,
+            # but a future backend could introduce new scopes; default
+            # to "member" to fail safely (less-privileged attribution).
+            scope = "member"
+        return cls(
+            bot_id=data["bot_id"],
+            space_id=data["space_id"],
+            scope=scope,
+            slug=data["slug"],
+            name=data["name"],
+            icon=data["icon"],
+            created_by=data["created_by"],
+            created_at=data["created_at"],
+        )
+
+
+@dataclass(slots=True, frozen=True)
+class SpaceBotWithToken(SpaceBot):
+    """A :class:`SpaceBot` plus its plaintext Bearer token.
+
+    Returned *only* from :meth:`SocialHomeClient.bot.create` and
+    :meth:`SocialHomeClient.bot.rotate_token` — the backend exposes the
+    plaintext token exactly once per lifecycle event. Persist it
+    somewhere safe; a second fetch will not return it. The superclass
+    :class:`SpaceBot` deliberately excludes this field so normal reads
+    can't accidentally carry a secret.
+    """
+
+    token: str = ""
+
+    @classmethod
+    def from_api(cls, data: dict[str, Any]) -> SpaceBotWithToken:
+        scope = data.get("scope", "member")
+        if scope not in ("space", "member"):
+            scope = "member"
+        return cls(
+            bot_id=data["bot_id"],
+            space_id=data["space_id"],
+            scope=scope,
+            slug=data["slug"],
+            name=data["name"],
+            icon=data["icon"],
+            created_by=data["created_by"],
+            created_at=data["created_at"],
+            token=data["token"],
         )
 
 

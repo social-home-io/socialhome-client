@@ -13,6 +13,8 @@ from socialhome_client import (
     Conversation,
     ShoppingItem,
     Space,
+    SpaceBot,
+    SpaceBotWithToken,
     UnreadSummary,
     User,
 )
@@ -70,15 +72,83 @@ def test_calendar_event_optional_description():
     assert ev.description is None
 
 
-def test_space_notify_disabled_by_default():
+def test_space_bot_disabled_by_default():
     sp = Space.from_api({"id": "s1", "name": "Family"})
-    assert sp.notify_enabled is False
+    assert sp.bot_enabled is False
     assert sp.emoji is None
+
+
+def test_space_bot_enabled_roundtrip():
+    sp = Space.from_api({"id": "s1", "name": "Family", "bot_enabled": True})
+    assert sp.bot_enabled is True
 
 
 def test_conversation_defaults_to_dm():
     conv = Conversation.from_api({"id": "c1", "display_name": "Bob"})
     assert conv.type == "dm"
+    assert conv.bot_enabled is False
+
+
+def test_conversation_bot_enabled_roundtrip():
+    conv = Conversation.from_api({"id": "c1", "display_name": "Bob", "bot_enabled": True})
+    assert conv.bot_enabled is True
+
+
+def test_space_bot_from_api_full():
+    bot = SpaceBot.from_api(
+        {
+            "bot_id": "b1",
+            "space_id": "s1",
+            "scope": "space",
+            "slug": "doorbell",
+            "name": "Doorbell",
+            "icon": "🔔",
+            "created_by": "u-alice",
+            "created_at": "2026-04-23T10:00:00+00:00",
+        }
+    )
+    assert bot.scope == "space"
+    assert bot.slug == "doorbell"
+    # SpaceBot never carries a token; any leak would be a bug.
+    assert not hasattr(bot, "token")
+
+
+def test_space_bot_unknown_scope_defaults_to_member():
+    # Forward-compat: backend could add new scopes; fall back to the
+    # lowest-privilege attribution rather than blowing up.
+    bot = SpaceBot.from_api(
+        {
+            "bot_id": "b1",
+            "space_id": "s1",
+            "scope": "future-scope-we-dont-know",
+            "slug": "x",
+            "name": "X",
+            "icon": "❓",
+            "created_by": "u1",
+            "created_at": "2026-04-23T10:00:00+00:00",
+        }
+    )
+    assert bot.scope == "member"
+
+
+def test_space_bot_with_token_from_api():
+    bot = SpaceBotWithToken.from_api(
+        {
+            "bot_id": "b1",
+            "space_id": "s1",
+            "scope": "member",
+            "slug": "gym",
+            "name": "Gym",
+            "icon": "⏱️",
+            "created_by": "u-pascal",
+            "created_at": "2026-04-23T10:00:00+00:00",
+            "token": "shb_plaintext",
+        }
+    )
+    assert bot.token == "shb_plaintext"
+    # SpaceBotWithToken subclasses SpaceBot — callers can pass it where
+    # a SpaceBot is expected (after capturing the token separately).
+    assert isinstance(bot, SpaceBot)
 
 
 def test_unread_summary_spaces_coerced_to_ints():
