@@ -11,6 +11,7 @@ from socialhome_client import (
     Calendar,
     CalendarEvent,
     Conversation,
+    FederationBaseUpdate,
     ShoppingItem,
     Space,
     SpaceBot,
@@ -167,3 +168,27 @@ def test_unread_summary_spaces_coerced_to_ints():
 def test_unread_summary_empty_spaces():
     summary = UnreadSummary.from_api({"total": 0, "feed": 0, "dms": 0})
     assert summary.spaces == {}
+
+
+def test_federation_base_update_full_shape():
+    update = FederationBaseUpdate.from_api(
+        {
+            "ok": True,
+            "base": "https://external.example.org",
+            "changed": True,
+            "peers_notified": 5,
+        }
+    )
+    assert update.ok is True
+    assert update.base == "https://external.example.org"
+    assert update.changed is True
+    assert update.peers_notified == 5
+
+
+def test_federation_base_update_defaults_are_safe():
+    # Server can omit ``peers_notified`` when there are no peers to
+    # notify; ``from_api`` must not raise KeyError and must default
+    # to a non-negative int.
+    update = FederationBaseUpdate.from_api({"ok": True, "base": "https://x.test"})
+    assert update.changed is False
+    assert update.peers_notified == 0
