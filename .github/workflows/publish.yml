@@ -1,11 +1,11 @@
 name: Publish to PyPI
 
 on:
-  push:
-    # CalVer tags without a ``v`` prefix — e.g. 2026.4.22,
-    # 2026.4.22.1. The first segment is always the 4-digit year so
-    # the ``[0-9]*`` prefix is unambiguous.
-    tags: ["[0-9]*"]
+  # Publishing is driven by GitHub Releases only — cutting a release
+  # also creates the underlying CalVer tag (e.g. ``2026.4.22``) and
+  # fires ``release.published`` exactly once. A standalone tag push
+  # used to trigger a second redundant run on the same commit, so
+  # the ``push.tags`` trigger was dropped.
   release:
     types: [published]
 
