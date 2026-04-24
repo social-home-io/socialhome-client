@@ -19,6 +19,7 @@ from socialhome_client import (
     Calendar,
     CalendarEvent,
     Conversation,
+    FederationBaseUpdate,
     SHAuthError,
     SHClientError,
     SHNotFoundError,
@@ -471,6 +472,55 @@ async def test_bot_post_disabled_space_raises_client_error(client: SocialHomeCli
         with pytest.raises(SHClientError) as exc_info:
             await client.bot.post("s1", "shb_secret", title=None, message="blocked")
     assert exc_info.value.status == 403
+
+
+# ── c.federation ──────────────────────────────────────────────────────────
+
+
+async def test_federation_get_base_returns_current(client: SocialHomeClient):
+    with aioresponses() as m:
+        m.get(
+            "http://sh.test/api/ha/integration/federation-base",
+            status=200,
+            payload={"base": "https://external.example.org"},
+        )
+        assert await client.federation.get_base() == "https://external.example.org"
+
+
+async def test_federation_get_base_returns_none_when_unset(client: SocialHomeClient):
+    # Server returns ``{"base": null}`` before the integration has ever
+    # pushed a URL — callers treat ``None`` as "nothing configured yet".
+    with aioresponses() as m:
+        m.get(
+            "http://sh.test/api/ha/integration/federation-base",
+            status=200,
+            payload={"base": None},
+        )
+        assert await client.federation.get_base() is None
+
+
+async def test_federation_set_base_puts_and_parses_response(client: SocialHomeClient):
+    with aioresponses() as m:
+        m.put(
+            "http://sh.test/api/ha/integration/federation-base",
+            status=200,
+            payload={
+                "ok": True,
+                "base": "https://external.example.org",
+                "changed": True,
+                "peers_notified": 3,
+            },
+        )
+        result = await client.federation.set_base("https://external.example.org/")
+
+        (call,) = m.requests[("PUT", _url("/api/ha/integration/federation-base"))]
+        assert call.kwargs["json"] == {"base": "https://external.example.org/"}
+        assert result == FederationBaseUpdate(
+            ok=True,
+            base="https://external.example.org",
+            changed=True,
+            peers_notified=3,
+        )
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────

@@ -200,6 +200,33 @@ class SpaceBotWithToken(SpaceBot):
 
 
 @dataclass(slots=True, frozen=True)
+class FederationBaseUpdate:
+    """Result of pushing a new outward federation base URL.
+
+    Returned from :meth:`SocialHomeClient.federation.set_base`. The
+    server normalises the input — trailing slashes stripped, scheme
+    enforced — and reports back the canonical form in :attr:`base`.
+    :attr:`changed` is ``False`` for idempotent no-op pushes;
+    :attr:`peers_notified` counts how many already-paired peers
+    received a ``URL_UPDATED`` event after a real change.
+    """
+
+    ok: bool
+    base: str
+    changed: bool
+    peers_notified: int
+
+    @classmethod
+    def from_api(cls, data: dict[str, Any]) -> FederationBaseUpdate:
+        return cls(
+            ok=bool(data.get("ok", False)),
+            base=str(data.get("base", "")),
+            changed=bool(data.get("changed", False)),
+            peers_notified=int(data.get("peers_notified", 0)),
+        )
+
+
+@dataclass(slots=True, frozen=True)
 class UnreadSummary:
     total: int
     feed: int

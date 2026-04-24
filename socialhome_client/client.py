@@ -6,12 +6,13 @@ we haven't wrapped yet. All methods are ``async``, raise typed
 exceptions, and return typed dataclasses from :mod:`.models`.
 
 Feature-grouped surface: :class:`SocialHomeClient` exposes the HTTP
-primitives (``get`` / ``post`` / ``patch`` / ``delete``) plus a small
-set of resource attributes — ``c.me``, ``c.presence``, ``c.space``,
-``c.conversation``, ``c.shopping``, ``c.calendar``, ``c.bot`` — each
-of which groups the typed wrappers for one REST resource. Callers
-write ``c.shopping.add("milk")`` or ``c.bot.create(...)`` instead of
-carrying eighteen flat methods on a single object.
+primitives (``get`` / ``post`` / ``patch`` / ``put`` / ``delete``) plus
+a small set of resource attributes — ``c.me``, ``c.presence``,
+``c.space``, ``c.conversation``, ``c.shopping``, ``c.calendar``,
+``c.bot``, ``c.federation`` — each of which groups the typed wrappers
+for one REST resource. Callers write ``c.shopping.add("milk")`` or
+``c.bot.create(...)`` instead of carrying a flat list of methods on a
+single object.
 """
 
 from __future__ import annotations
@@ -27,6 +28,7 @@ from .models import (
     Calendar,
     CalendarEvent,
     Conversation,
+    FederationBaseUpdate,
     ShoppingItem,
     Space,
     SpaceBot,
@@ -80,6 +82,7 @@ class SocialHomeClient:
         self.shopping = _ShoppingResource(self)
         self.calendar = _CalendarResource(self)
         self.bot = _BotResource(self)
+        self.federation = _FederationResource(self)
 
     # ── Session lifecycle ─────────────────────────────────────────────────
 
@@ -165,6 +168,14 @@ class SocialHomeClient:
     async def patch(self, path: str, *, json: dict[str, Any] | None = None) -> Any:
         """PATCH ``{base_url}{path}`` with an optional JSON body."""
         return await self._request("PATCH", path, json=json)
+
+    async def put(self, path: str, *, json: dict[str, Any] | None = None) -> Any:
+        """PUT ``{base_url}{path}`` with an optional JSON body.
+
+        Used for idempotent upserts — currently the HA integration's
+        federation-base endpoint is the only caller.
+        """
+        return await self._request("PUT", path, json=json)
 
     async def delete(self, path: str) -> None:
         """DELETE ``{base_url}{path}``. Returns ``None`` on success."""
@@ -532,6 +543,49 @@ class _BotResource:
             f"/api/bot-bridge/conversations/{conversation_id}",
             json={"title": title, "message": message},
         )
+
+
+class _FederationResource:
+    """HA-integration-only glue for the outward federation base URL.
+
+    The HA integration knows the externally-reachable URL of the
+    Social Home instance — admin-set ``external_url`` or Nabu Casa
+    Remote UI — which the core server by itself cannot see. The
+    integration pushes that URL here so the server can stamp it
+    into new pairing QRs and notify already-paired peers via
+    ``URL_UPDATED`` when it changes.
+
+    Admin-only on the server side; the integration is always the
+    owner (HA bootstrap stamps it as admin). Spec §7.10 / §11.
+    """
+
+    __slots__ = ("_c",)
+
+    def __init__(self, client: SocialHomeClient) -> None:
+        self._c = client
+
+    async def get_base(self) -> str | None:
+        """GET ``/api/ha/integration/federation-base``.
+
+        Returns the currently-configured base URL, or ``None`` if the
+        integration has never pushed one. Used on re-bind to decide
+        whether a push is necessary.
+        """
+        body = await self._c.get("/api/ha/integration/federation-base")
+        raw = body.get("base")
+        return str(raw) if raw else None
+
+    async def set_base(self, base: str) -> FederationBaseUpdate:
+        """PUT ``/api/ha/integration/federation-base`` with ``{"base": …}``.
+
+        Idempotent — pushing an unchanged value is a cheap no-op on
+        the server (no fan-out). When the value changes, the server
+        notifies every confirmed peer with ``URL_UPDATED``; the
+        returned :class:`FederationBaseUpdate` reports how many
+        peers were notified.
+        """
+        body = await self._c.put("/api/ha/integration/federation-base", json={"base": base})
+        return FederationBaseUpdate.from_api(body)
 
 
 # ──────────────────────────────────────────────────────────────────────────
