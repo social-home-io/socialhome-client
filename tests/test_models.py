@@ -12,6 +12,7 @@ from socialhome_client import (
     CalendarEvent,
     Conversation,
     FederationBaseUpdate,
+    FederationRelayResult,
     ShoppingItem,
     Space,
     SpaceBot,
@@ -192,3 +193,14 @@ def test_federation_base_update_defaults_are_safe():
     update = FederationBaseUpdate.from_api({"ok": True, "base": "https://x.test"})
     assert update.changed is False
     assert update.peers_notified == 0
+
+
+def test_federation_relay_result_preserves_raw_body():
+    # ``FederationRelayResult`` is not built from an API JSON shape;
+    # it just carries raw bytes from the inbox-relay call. Confirm
+    # the dataclass does not coerce or strip.
+    raw = b'{"status":"ok"}'
+    result = FederationRelayResult(status=200, body=raw, content_type="application/json")
+    assert result.body is raw
+    assert result.status == 200
+    assert result.content_type == "application/json"
