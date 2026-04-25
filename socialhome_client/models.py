@@ -200,6 +200,25 @@ class SpaceBotWithToken(SpaceBot):
 
 
 @dataclass(slots=True, frozen=True)
+class FederationRelayResult:
+    """Raw HTTP response from a federation inbox relay call.
+
+    Returned from
+    :meth:`SocialHomeClient.federation.forward_inbox_envelope`. The
+    HA integration mirrors these fields back to the remote peer
+    unchanged — ``status`` becomes the HTTP status of the outer
+    response, ``body`` its raw bytes, and ``content_type`` its
+    ``Content-Type`` header. Unlike the other dataclasses in this
+    module, the server never sends this directly: the shape is
+    the *client's* view of an opaque HTTP round-trip.
+    """
+
+    status: int
+    body: bytes
+    content_type: str
+
+
+@dataclass(slots=True, frozen=True)
 class FederationBaseUpdate:
     """Result of pushing a new outward federation base URL.
 

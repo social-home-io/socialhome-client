@@ -29,6 +29,7 @@ from .models import (
     CalendarEvent,
     Conversation,
     FederationBaseUpdate,
+    FederationRelayResult,
     ShoppingItem,
     Space,
     SpaceBot,
@@ -546,17 +547,20 @@ class _BotResource:
 
 
 class _FederationResource:
-    """HA-integration-only glue for the outward federation base URL.
+    """Federation-layer glue used by the HA integration.
 
-    The HA integration knows the externally-reachable URL of the
-    Social Home instance — admin-set ``external_url`` or Nabu Casa
-    Remote UI — which the core server by itself cannot see. The
-    integration pushes that URL here so the server can stamp it
-    into new pairing QRs and notify already-paired peers via
-    ``URL_UPDATED`` when it changes.
+    Two responsibilities:
 
-    Admin-only on the server side; the integration is always the
-    owner (HA bootstrap stamps it as admin). Spec §7.10 / §11.
+    1. **Outward URL advertisement** — push the HA-resolved external
+       URL to the server so pairing QRs carry the right address and
+       already-paired peers get ``URL_UPDATED`` on change.
+    2. **Inbound envelope relay** — forward raw federation envelopes
+       from the HA integration's public inbox endpoint into the
+       server's internal ``/federation/inbox/{inbox_id}``. The server
+       runs the full §24.11 validation pipeline; the relay is a pure
+       HTTP passthrough — no body parsing, no error mapping.
+
+    Spec §7.10 / §11.
     """
 
     __slots__ = ("_c",)
@@ -586,6 +590,47 @@ class _FederationResource:
         """
         body = await self._c.put("/api/ha/integration/federation-base", json={"base": base})
         return FederationBaseUpdate.from_api(body)
+
+    async def forward_inbox_envelope(
+        self,
+        inbox_id: str,
+        body: bytes,
+        *,
+        extra_headers: dict[str, str] | None = None,
+    ) -> FederationRelayResult:
+        """POST a raw federation envelope to ``/federation/inbox/{inbox_id}``.
+
+        Used by the HA integration's public inbox endpoint to proxy
+        envelopes coming in from remote instances. The server path
+        is **unauthenticated** — the Ed25519 signature inside the
+        envelope is the auth — but we reuse the client's session
+        (and its bearer header) so a single :class:`aiohttp.ClientSession`
+        serves every federation call.
+
+        This method deliberately bypasses the usual JSON-parse +
+        raise-on-non-2xx plumbing: the caller is an HTTP relay, so it
+        needs the raw status, content type, and body bytes to mirror
+        back to the remote peer unchanged.
+
+        Raises :class:`SHClientError` only on transport-level
+        failures (DNS, connection reset). Any HTTP status — 2xx,
+        4xx, 5xx — comes back as :class:`FederationRelayResult`.
+        """
+        session = await self._c._session_once()
+        url = f"{self._c.base_url}/federation/inbox/{inbox_id}"
+        headers: dict[str, str] = {"Content-Type": "application/octet-stream"}
+        if extra_headers:
+            headers.update(extra_headers)
+        try:
+            async with session.post(url, data=body, headers=headers) as resp:
+                payload = await resp.read()
+                return FederationRelayResult(
+                    status=resp.status,
+                    body=payload,
+                    content_type=resp.headers.get("Content-Type", "application/octet-stream"),
+                )
+        except aiohttp.ClientError as exc:
+            raise SHClientError(f"POST /federation/inbox/{inbox_id} failed: {exc}") from exc
 
 
 # ──────────────────────────────────────────────────────────────────────────
