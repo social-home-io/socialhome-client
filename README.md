@@ -74,6 +74,17 @@ pre-commit install
 pytest
 ```
 
+## Documentation
+
+- [`docs/principles.md`](docs/principles.md) — design principles
+  (standalone of core, async everywhere, typed responses).
+- [`docs/architecture.md`](docs/architecture.md) — HTTP client +
+  feature resources, WebSocket manager, models, exceptions.
+- [`docs/testing.md`](docs/testing.md) — test strategy, 85 %
+  coverage gate, `aioresponses` + fake-WS patterns.
+- [`CLAUDE.md`](CLAUDE.md), [`AGENTS.md`](AGENTS.md) — guidance for
+  AI assistants working in this repo.
+
 ## License
 
 [Mozilla Public License 2.0](LICENSE).

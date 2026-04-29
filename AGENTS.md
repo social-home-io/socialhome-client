@@ -23,11 +23,27 @@ AI agent instruction file. Read before editing. Canonical spec:
 - Coverage gate: 85 % branch.
 
 ### Keep docs in sync
-- Changed a public method signature? Update \`README.md\`'s usage
-  block if the example touches the method, and update any CLAUDE.md
-  notes that cite it.
-- Changed the exception hierarchy? Update CLAUDE.md's "Hard rules".
+Docs live in `docs/`. Ship the matching doc update in the same
+commit:
+- New / renamed / removed public method on `SocialHomeClient` →
+  update the resource table in `docs/architecture.md`. Touch
+  `README.md`'s usage block if the example references the method.
+- Changed `SocialHomeWsManager` reconnect schedule, heartbeat, or
+  connect timeout → update the constants block + sequence diagram
+  in `docs/architecture.md`.
+- Changed the exception hierarchy (new `SHClient*Error`, changed
+  status mapping) → update `docs/architecture.md` and the
+  exception-hierarchy section in `docs/principles.md`.
+- Test-strategy change (coverage gate, mock approach, shared
+  fixtures) → `docs/testing.md`.
+- §6 invariant touched (raise the Python floor, add a runtime
+  dependency, import from core, drop type hints from a public
+  surface) → `docs/principles.md`, **and** flag in the PR
+  description for explicit reviewer sign-off.
+- New top-level doc file under `docs/` → link from `docs/README.md`
+  and from the repo-root `README.md`.
 
 ### File locations
 - Library code: `socialhome_client/`
 - Tests: `tests/` (mirrors the module tree)
+- Docs: `docs/` (principles, architecture, testing)
