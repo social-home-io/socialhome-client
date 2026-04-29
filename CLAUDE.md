@@ -54,6 +54,38 @@ mypy socialhome_client/
 Tests use `aioresponses` to stub HTTP and a fake `aiohttp.ClientWebSocketResponse`
 for WS. No real network. No sockets.
 
+## Keep docs in sync
+
+`docs/` is the public reference for the library's design. Treat the
+matching doc file as part of the same change:
+
+- **Added a new resource or method on `SocialHomeClient`?** Update
+  the resource table in `docs/architecture.md` and, if the README's
+  usage example is affected, update the example block too.
+- **Changed `SocialHomeWsManager`'s reconnect schedule, heartbeat,
+  or connect timeout?** Update the constants block and the sequence
+  diagram in `docs/architecture.md`. The CHANGELOG mentions of these
+  numbers should match the doc.
+- **Changed the exception hierarchy** (new `SHClient*Error`,
+  changed status mapping)? Update `docs/architecture.md` and the
+  "One exception hierarchy" section in `docs/principles.md`.
+- **Changed the test strategy** (coverage gate, mock approach,
+  shared fixtures)? Update `docs/testing.md` so the commands and
+  numbers there match `pyproject.toml`.
+- **Touched a §6 invariant** (raised the Python floor, added a
+  runtime dependency, started importing from core, removed type
+  hints from a public surface)? Update `docs/principles.md` AND
+  flag the change in the PR description for explicit reviewer
+  sign-off.
+- **Added a new top-level doc file under `docs/`?** Link it from
+  `docs/README.md` and from the repo-root `README.md` under
+  "Documentation".
+
+Reviewer checklist: if a PR adds a public method, changes the WS
+behaviour, changes an exception, or shifts the test strategy and the
+docs aren't touched, push back. Incremental accuracy beats big-bang
+rewrites.
+
 ## Releasing
 
 CalVer without a ``v`` prefix — tags look like ``2026.4.22`` or
