@@ -20,6 +20,8 @@ from socialhome_client import (
     CalendarEvent,
     Conversation,
     FederationBaseUpdate,
+    IceServer,
+    IceServersUpdate,
     SHAuthError,
     SHClientError,
     SHNotFoundError,
@@ -474,20 +476,20 @@ async def test_bot_post_disabled_space_raises_client_error(client: SocialHomeCli
     assert exc_info.value.status == 403
 
 
-# ── c.federation ──────────────────────────────────────────────────────────
+# ── c.ha — HA-platform-specific endpoints ────────────────────────────────
 
 
-async def test_federation_get_base_returns_current(client: SocialHomeClient):
+async def test_ha_get_federation_base_returns_current(client: SocialHomeClient):
     with aioresponses() as m:
         m.get(
             "http://sh.test/api/ha/integration/federation-base",
             status=200,
             payload={"base": "https://external.example.org"},
         )
-        assert await client.federation.get_base() == "https://external.example.org"
+        assert await client.ha.get_federation_base() == "https://external.example.org"
 
 
-async def test_federation_get_base_returns_none_when_unset(client: SocialHomeClient):
+async def test_ha_get_federation_base_returns_none_when_unset(client: SocialHomeClient):
     # Server returns ``{"base": null}`` before the integration has ever
     # pushed a URL — callers treat ``None`` as "nothing configured yet".
     with aioresponses() as m:
@@ -496,10 +498,10 @@ async def test_federation_get_base_returns_none_when_unset(client: SocialHomeCli
             status=200,
             payload={"base": None},
         )
-        assert await client.federation.get_base() is None
+        assert await client.ha.get_federation_base() is None
 
 
-async def test_federation_set_base_puts_and_parses_response(client: SocialHomeClient):
+async def test_ha_set_federation_base_puts_and_parses_response(client: SocialHomeClient):
     with aioresponses() as m:
         m.put(
             "http://sh.test/api/ha/integration/federation-base",
@@ -511,7 +513,7 @@ async def test_federation_set_base_puts_and_parses_response(client: SocialHomeCl
                 "peers_notified": 3,
             },
         )
-        result = await client.federation.set_base("https://external.example.org/")
+        result = await client.ha.set_federation_base("https://external.example.org/")
 
         (call,) = m.requests[("PUT", _url("/api/ha/integration/federation-base"))]
         assert call.kwargs["json"] == {"base": "https://external.example.org/"}
@@ -520,6 +522,113 @@ async def test_federation_set_base_puts_and_parses_response(client: SocialHomeCl
             base="https://external.example.org",
             changed=True,
             peers_notified=3,
+        )
+
+
+async def test_ha_get_ice_servers_returns_list(client: SocialHomeClient):
+    with aioresponses() as m:
+        m.get(
+            "http://sh.test/api/ha/integration/ice-servers",
+            status=200,
+            payload={
+                "ice_servers": [
+                    {"urls": ["stun:stun.example.org:3478"]},
+                    {
+                        "urls": [
+                            "turn:turn.example.org:3478",
+                            "turns:turn.example.org:5349",
+                        ],
+                        "username": "u",
+                        "credential": "p",
+                    },
+                ],
+            },
+        )
+        result = await client.ha.get_ice_servers()
+        assert len(result) == 2
+        assert result[0] == IceServer(urls=("stun:stun.example.org:3478",))
+        assert result[1] == IceServer(
+            urls=("turn:turn.example.org:3478", "turns:turn.example.org:5349"),
+            username="u",
+            credential="p",
+        )
+
+
+async def test_ha_get_ice_servers_empty_when_unset(client: SocialHomeClient):
+    with aioresponses() as m:
+        m.get(
+            "http://sh.test/api/ha/integration/ice-servers",
+            status=200,
+            payload={"ice_servers": []},
+        )
+        assert await client.ha.get_ice_servers() == []
+
+
+async def test_ha_set_ice_servers_puts_dataclasses(client: SocialHomeClient):
+    with aioresponses() as m:
+        m.put(
+            "http://sh.test/api/ha/integration/ice-servers",
+            status=200,
+            payload={
+                "ok": True,
+                "ice_servers": [
+                    {"urls": ["stun:stun.example.org:3478"]},
+                ],
+                "changed": True,
+            },
+        )
+        result = await client.ha.set_ice_servers(
+            [IceServer(urls=("stun:stun.example.org:3478",))],
+        )
+
+        (call,) = m.requests[("PUT", _url("/api/ha/integration/ice-servers"))]
+        assert call.kwargs["json"] == {
+            "ice_servers": [{"urls": ["stun:stun.example.org:3478"]}],
+        }
+        assert result == IceServersUpdate(
+            ok=True,
+            ice_servers=(IceServer(urls=("stun:stun.example.org:3478",)),),
+            changed=True,
+        )
+
+
+async def test_ha_set_ice_servers_accepts_plain_dicts(client: SocialHomeClient):
+    """Callers can pass raw RTCIceServer-shaped dicts without
+    constructing :class:`IceServer` — handy when the integration is
+    just round-tripping a payload from the operator's config flow."""
+    with aioresponses() as m:
+        m.put(
+            "http://sh.test/api/ha/integration/ice-servers",
+            status=200,
+            payload={
+                "ok": True,
+                "ice_servers": [
+                    {
+                        "urls": ["turn:relay.example.org:3478"],
+                        "username": "alice",
+                        "credential": "secret",
+                    },
+                ],
+                "changed": False,
+            },
+        )
+        result = await client.ha.set_ice_servers(
+            [
+                {
+                    "urls": ["turn:relay.example.org:3478"],
+                    "username": "alice",
+                    "credential": "secret",
+                },
+            ],
+        )
+        assert result.ok is True
+        assert result.changed is False
+        assert result.ice_servers == (
+            IceServer(
+                urls=("turn:relay.example.org:3478",),
+                username="alice",
+                credential="secret",
+            ),
         )
 
 

@@ -9,10 +9,16 @@ Feature-grouped surface: :class:`SocialHomeClient` exposes the HTTP
 primitives (``get`` / ``post`` / ``patch`` / ``put`` / ``delete``) plus
 a small set of resource attributes — ``c.me``, ``c.presence``,
 ``c.space``, ``c.conversation``, ``c.shopping``, ``c.calendar``,
-``c.bot``, ``c.federation`` — each of which groups the typed wrappers
-for one REST resource. Callers write ``c.shopping.add("milk")`` or
-``c.bot.create(...)`` instead of carrying a flat list of methods on a
-single object.
+``c.bot``, ``c.federation``, ``c.ha`` — each of which groups the typed
+wrappers for one REST resource. Callers write ``c.shopping.add("milk")``
+or ``c.bot.create(...)`` instead of carrying a flat list of methods on
+a single object.
+
+Platform abstraction: ``c.ha`` carves out endpoints under
+``/api/ha/integration/*`` — the operator-managed config the HA
+integration pushes (federation base URL, STUN/TURN list). Keeping
+those out of the cross-cutting ``c.federation`` surface makes it
+obvious at every call site that the method is HA-platform-only.
 """
 
 from __future__ import annotations
@@ -30,6 +36,8 @@ from .models import (
     Conversation,
     FederationBaseUpdate,
     FederationRelayResult,
+    IceServer,
+    IceServersUpdate,
     ShoppingItem,
     Space,
     SpaceBot,
@@ -84,6 +92,13 @@ class SocialHomeClient:
         self.calendar = _CalendarResource(self)
         self.bot = _BotResource(self)
         self.federation = _FederationResource(self)
+        # Platform-specific surfaces. ``c.ha`` groups every endpoint
+        # under the SH server's ``/api/ha/integration/*`` prefix —
+        # endpoints the HA integration is the only intended caller for.
+        # Keeping them out of ``c.federation`` makes it obvious at the
+        # call site that a method is HA-platform-only and can return
+        # 404 / no-op on non-HA SH deployments.
+        self.ha = _HaResource(self)
 
     # ── Session lifecycle ─────────────────────────────────────────────────
 
@@ -173,8 +188,8 @@ class SocialHomeClient:
     async def put(self, path: str, *, json: dict[str, Any] | None = None) -> Any:
         """PUT ``{base_url}{path}`` with an optional JSON body.
 
-        Used for idempotent upserts — currently the HA integration's
-        federation-base endpoint is the only caller.
+        Used for idempotent upserts — see ``c.ha.set_federation_base``
+        and ``c.ha.set_ice_servers`` for the typed wrappers.
         """
         return await self._request("PUT", path, json=json)
 
@@ -547,49 +562,26 @@ class _BotResource:
 
 
 class _FederationResource:
-    """Federation-layer glue used by the HA integration.
+    """Generic federation surface — not platform-specific.
 
-    Two responsibilities:
+    Inbound envelope relay: forward raw federation envelopes from the
+    HA integration's public inbox endpoint into the server's internal
+    ``/federation/inbox/{inbox_id}``. The server runs the full §24.11
+    validation pipeline; the relay is a pure HTTP passthrough — no
+    body parsing, no error mapping.
 
-    1. **Outward URL advertisement** — push the HA-resolved external
-       URL to the server so pairing QRs carry the right address and
-       already-paired peers get ``URL_UPDATED`` on change.
-    2. **Inbound envelope relay** — forward raw federation envelopes
-       from the HA integration's public inbox endpoint into the
-       server's internal ``/federation/inbox/{inbox_id}``. The server
-       runs the full §24.11 validation pipeline; the relay is a pure
-       HTTP passthrough — no body parsing, no error mapping.
+    Platform-specific config (``federation-base``, ``ice-servers``)
+    lives on :class:`_HaResource` (``c.ha.*``) — those endpoints sit
+    behind ``/api/ha/integration/*`` and only the HA integration is
+    the intended caller.
 
-    Spec §7.10 / §11.
+    Spec §11 / §24.11.
     """
 
     __slots__ = ("_c",)
 
     def __init__(self, client: SocialHomeClient) -> None:
         self._c = client
-
-    async def get_base(self) -> str | None:
-        """GET ``/api/ha/integration/federation-base``.
-
-        Returns the currently-configured base URL, or ``None`` if the
-        integration has never pushed one. Used on re-bind to decide
-        whether a push is necessary.
-        """
-        body = await self._c.get("/api/ha/integration/federation-base")
-        raw = body.get("base")
-        return str(raw) if raw else None
-
-    async def set_base(self, base: str) -> FederationBaseUpdate:
-        """PUT ``/api/ha/integration/federation-base`` with ``{"base": …}``.
-
-        Idempotent — pushing an unchanged value is a cheap no-op on
-        the server (no fan-out). When the value changes, the server
-        notifies every confirmed peer with ``URL_UPDATED``; the
-        returned :class:`FederationBaseUpdate` reports how many
-        peers were notified.
-        """
-        body = await self._c.put("/api/ha/integration/federation-base", json={"base": base})
-        return FederationBaseUpdate.from_api(body)
 
     async def forward_inbox_envelope(
         self,
@@ -631,6 +623,98 @@ class _FederationResource:
                 )
         except aiohttp.ClientError as exc:
             raise SHClientError(f"POST /federation/inbox/{inbox_id} failed: {exc}") from exc
+
+
+class _HaResource:
+    """HA-platform-specific endpoints under ``/api/ha/integration/*``.
+
+    The HA integration is the only intended caller — the routes write
+    operator-managed config (the externally-reachable URL the addon
+    advertises in pairing QRs, the operator's STUN/TURN list) into
+    the SH server's ``instance_config`` table where the federation
+    + WebRTC stacks pick them up live. Grouping them under ``c.ha.*``
+    keeps the HA-only nature visible at every call site.
+
+    Spec §7.10 (URL push) and §24.10.7 (ICE-servers push).
+    """
+
+    __slots__ = ("_c",)
+
+    def __init__(self, client: SocialHomeClient) -> None:
+        self._c = client
+
+    # ── federation-base ────────────────────────────────────────────────────
+
+    async def get_federation_base(self) -> str | None:
+        """GET ``/api/ha/integration/federation-base``.
+
+        Returns the currently-configured base URL, or ``None`` if the
+        integration has never pushed one. Used on re-bind to decide
+        whether a push is necessary.
+        """
+        body = await self._c.get("/api/ha/integration/federation-base")
+        raw = body.get("base")
+        return str(raw) if raw else None
+
+    async def set_federation_base(self, base: str) -> FederationBaseUpdate:
+        """PUT ``/api/ha/integration/federation-base`` with ``{"base": …}``.
+
+        Idempotent — pushing an unchanged value is a cheap no-op on
+        the server (no fan-out). When the value changes, the server
+        notifies every confirmed peer with ``URL_UPDATED``; the
+        returned :class:`FederationBaseUpdate` reports how many
+        peers were notified.
+        """
+        body = await self._c.put(
+            "/api/ha/integration/federation-base",
+            json={"base": base},
+        )
+        return FederationBaseUpdate.from_api(body)
+
+    # ── ice-servers ────────────────────────────────────────────────────────
+
+    async def get_ice_servers(self) -> list[IceServer]:
+        """GET ``/api/ha/integration/ice-servers``.
+
+        Returns the operator's STUN/TURN list as the server has it
+        cached. Empty list when the integration has never pushed —
+        the SH server falls back to ``Config.webrtc_*`` defaults in
+        that state.
+        """
+        body = await self._c.get("/api/ha/integration/ice-servers")
+        raw = body.get("ice_servers") or []
+        return [IceServer.from_api(s) for s in raw]
+
+    async def set_ice_servers(
+        self,
+        servers: list[IceServer] | list[dict[str, Any]],
+    ) -> IceServersUpdate:
+        """PUT ``/api/ha/integration/ice-servers`` with the new list.
+
+        Server-side validation rejects bad schemes (only
+        ``stun:``/``stuns:``/``turn:``/``turns:``) and bounded
+        counts (8 servers / 4 urls / 512-char fields) so a misbehaving
+        integration can't bloat the per-peer ``ice_servers`` echo.
+        On success the SH server propagates the list to its live
+        :class:`FederationService` so future DataChannel handshakes
+        pick up the new STUN/TURN config.
+
+        Accepts either :class:`IceServer` instances or plain dicts in
+        the Chrome ``RTCIceServer`` shape — the latter lets callers
+        round-trip ``{"urls": [...], "username": ..., "credential": ...}``
+        without constructing the dataclass.
+        """
+        payload: list[dict[str, Any]] = []
+        for s in servers:
+            if isinstance(s, IceServer):
+                payload.append(s.to_api())
+            else:
+                payload.append(dict(s))
+        body = await self._c.put(
+            "/api/ha/integration/ice-servers",
+            json={"ice_servers": payload},
+        )
+        return IceServersUpdate.from_api(body)
 
 
 # ──────────────────────────────────────────────────────────────────────────

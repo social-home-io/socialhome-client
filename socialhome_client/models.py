@@ -219,6 +219,63 @@ class FederationRelayResult:
 
 
 @dataclass(slots=True, frozen=True)
+class IceServer:
+    """One STUN/TURN entry as the SH backend persists it.
+
+    Mirrors the Chrome-shaped ``RTCIceServer`` dict the WebRTC stack
+    consumes. ``urls`` is always a list (the server normalises a
+    single-string input to a list); ``username`` / ``credential`` are
+    only set on TURN entries that need auth.
+    """
+
+    urls: tuple[str, ...]
+    username: str | None = None
+    credential: str | None = None
+
+    @classmethod
+    def from_api(cls, data: dict[str, Any]) -> IceServer:
+        raw_urls = data.get("urls", [])
+        urls = (raw_urls,) if isinstance(raw_urls, str) else tuple(str(u) for u in raw_urls)
+        return cls(
+            urls=urls,
+            username=data.get("username"),
+            credential=data.get("credential"),
+        )
+
+    def to_api(self) -> dict[str, Any]:
+        out: dict[str, Any] = {"urls": list(self.urls)}
+        if self.username is not None:
+            out["username"] = self.username
+        if self.credential is not None:
+            out["credential"] = self.credential
+        return out
+
+
+@dataclass(slots=True, frozen=True)
+class IceServersUpdate:
+    """Result of pushing a fresh STUN/TURN list to the SH backend.
+
+    Returned from :meth:`SocialHomeClient.ha.set_ice_servers`. The
+    server validates each entry (scheme allow-list, length caps) and
+    returns the normalised list so the integration can re-render its
+    config UI from the source of truth. ``changed`` is ``False`` for
+    idempotent re-pushes of the same list.
+    """
+
+    ok: bool
+    ice_servers: tuple[IceServer, ...]
+    changed: bool
+
+    @classmethod
+    def from_api(cls, data: dict[str, Any]) -> IceServersUpdate:
+        return cls(
+            ok=bool(data.get("ok", False)),
+            ice_servers=tuple(IceServer.from_api(s) for s in (data.get("ice_servers") or [])),
+            changed=bool(data.get("changed", False)),
+        )
+
+
+@dataclass(slots=True, frozen=True)
 class FederationBaseUpdate:
     """Result of pushing a new outward federation base URL.
 
