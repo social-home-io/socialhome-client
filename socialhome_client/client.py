@@ -7,12 +7,12 @@ exceptions, and return typed dataclasses from :mod:`.models`.
 
 Feature-grouped surface: :class:`SocialHomeClient` exposes the HTTP
 primitives (``get`` / ``post`` / ``patch`` / ``put`` / ``delete``) plus
-a small set of resource attributes — ``c.me``, ``c.presence``,
-``c.space``, ``c.conversation``, ``c.shopping``, ``c.calendar``,
-``c.bot``, ``c.federation``, ``c.ha`` — each of which groups the typed
-wrappers for one REST resource. Callers write ``c.shopping.add("milk")``
-or ``c.bot.create(...)`` instead of carrying a flat list of methods on
-a single object.
+a small set of resource attributes — ``c.me``, ``c.notifications``,
+``c.presence``, ``c.space``, ``c.conversation``, ``c.shopping``,
+``c.calendar``, ``c.bot``, ``c.federation``, ``c.ha`` — each of which
+groups the typed wrappers for one REST resource. Callers write
+``c.shopping.add("milk")`` or ``c.bot.create(...)`` instead of carrying
+a flat list of methods on a single object.
 
 Platform abstraction: ``c.ha`` carves out endpoints under
 ``/api/ha/integration/*`` — the operator-managed config the HA
@@ -42,7 +42,6 @@ from .models import (
     Space,
     SpaceBot,
     SpaceBotWithToken,
-    UnreadSummary,
     User,
 )
 
@@ -85,6 +84,7 @@ class SocialHomeClient:
         # keeps a back-reference to this client so the low-level
         # helpers (and their error mapping) stay centralised here.
         self.me = _MeResource(self)
+        self.notifications = _NotificationsResource(self)
         self.presence = _PresenceResource(self)
         self.space = _SpaceResource(self)
         self.conversation = _ConversationResource(self)
@@ -219,7 +219,7 @@ class SocialHomeClient:
 
 
 class _MeResource:
-    """Identity + own-token + unread-summary reads."""
+    """Identity + own-token reads."""
 
     __slots__ = ("_c",)
 
@@ -245,9 +245,26 @@ class _MeResource:
         )
         return str(body["token"])
 
-    async def unread_summary(self) -> UnreadSummary:
-        """GET ``/api/me/unread-summary``. Polled every 60 s by the coordinator."""
-        return UnreadSummary.from_api(await self._c.get("/api/me/unread-summary"))
+
+class _NotificationsResource:
+    """Notification badge reads."""
+
+    __slots__ = ("_c",)
+
+    def __init__(self, client: SocialHomeClient) -> None:
+        self._c = client
+
+    async def unread_count(self) -> int:
+        """GET ``/api/notifications/unread-count`` → ``int``.
+
+        Returns the caller's unread-notification count as a single
+        integer. The earlier ``/api/me/unread-summary`` endpoint —
+        which returned per-feed / per-DM / per-space breakdowns —
+        was removed from the server in ``socialhome 2026.5.11``;
+        this method replaces ``client.me.unread_summary()``.
+        """
+        body = await self._c.get("/api/notifications/unread-count")
+        return int(body["unread"])
 
 
 class _PresenceResource:

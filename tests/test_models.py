@@ -17,7 +17,6 @@ from socialhome_client import (
     Space,
     SpaceBot,
     SpaceBotWithToken,
-    UnreadSummary,
     User,
 )
 
@@ -151,24 +150,6 @@ def test_space_bot_with_token_from_api():
     # SpaceBotWithToken subclasses SpaceBot — callers can pass it where
     # a SpaceBot is expected (after capturing the token separately).
     assert isinstance(bot, SpaceBot)
-
-
-def test_unread_summary_spaces_coerced_to_ints():
-    summary = UnreadSummary.from_api(
-        {
-            "total": "3",  # tolerate stringly-typed counts
-            "feed": 1,
-            "dms": 0,
-            "spaces": {"s1": "2"},
-        }
-    )
-    assert summary.total == 3
-    assert summary.spaces == {"s1": 2}
-
-
-def test_unread_summary_empty_spaces():
-    summary = UnreadSummary.from_api({"total": 0, "feed": 0, "dms": 0})
-    assert summary.spaces == {}
 
 
 def test_federation_base_update_full_shape():

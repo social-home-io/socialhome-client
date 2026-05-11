@@ -47,7 +47,8 @@ client and expose feature-shaped methods:
 
 | Resource | Surface | Spec |
 |---|---|---|
-| `_MeResource` | `get()`, `create_token(...)`, `unread_summary()` | §6.1 |
+| `_MeResource` | `get()`, `create_token(...)` | §6.1 |
+| `_NotificationsResource` | `unread_count()` | §6.1 / §17.2 |
 | `_PresenceResource` | `post_location(username, lat, lon, accuracy_m, zone)` | §6.1 / §7.3 |
 | `_SpaceResource` | `list()`, `update(space_id, **fields)` | §6.1 |
 | `_ConversationResource` | `list()` | §6.1 |
@@ -112,7 +113,7 @@ Every `models.py` dataclass is frozen and slotted, with a
 `from_api(d: dict)` classmethod that does the conversion from the
 JSON shape the HFS returns. Models exist for:
 
-- `User`, `UnreadSummary` — `/api/me*`
+- `User` — `/api/me*`
 - `Space`, `Conversation` — listings
 - `ShoppingItem`
 - `Calendar`, `CalendarEvent`
