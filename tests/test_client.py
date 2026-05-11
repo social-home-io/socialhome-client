@@ -30,7 +30,6 @@ from socialhome_client import (
     Space,
     SpaceBot,
     SpaceBotWithToken,
-    UnreadSummary,
     User,
 )
 
@@ -119,16 +118,27 @@ async def test_me_create_token(client: SocialHomeClient):
     assert token == "deadbeef"
 
 
-async def test_me_unread_summary(client: SocialHomeClient):
+# ── c.notifications ───────────────────────────────────────────────────────
+
+
+async def test_notifications_unread_count(client: SocialHomeClient):
     with aioresponses() as m:
         m.get(
-            "http://sh.test/api/me/unread-summary",
-            payload={"total": 4, "feed": 1, "dms": 2, "spaces": {"s1": 1}},
+            "http://sh.test/api/notifications/unread-count",
+            payload={"unread": 7},
         )
-        summary = await client.me.unread_summary()
-    assert isinstance(summary, UnreadSummary)
-    assert summary.total == 4
-    assert summary.spaces == {"s1": 1}
+        count = await client.notifications.unread_count()
+    assert count == 7
+
+
+async def test_notifications_unread_count_coerces_to_int(client: SocialHomeClient):
+    with aioresponses() as m:
+        m.get(
+            "http://sh.test/api/notifications/unread-count",
+            payload={"unread": "3"},  # tolerate stringly-typed counts
+        )
+        count = await client.notifications.unread_count()
+    assert count == 3
 
 
 # ── c.presence ────────────────────────────────────────────────────────────

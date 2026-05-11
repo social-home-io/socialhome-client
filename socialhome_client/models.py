@@ -6,7 +6,7 @@ Every public :class:`SocialHomeClient` method returns one of these
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Literal
 
 
@@ -299,21 +299,4 @@ class FederationBaseUpdate:
             base=str(data.get("base", "")),
             changed=bool(data.get("changed", False)),
             peers_notified=int(data.get("peers_notified", 0)),
-        )
-
-
-@dataclass(slots=True, frozen=True)
-class UnreadSummary:
-    total: int
-    feed: int
-    dms: int
-    spaces: dict[str, int] = field(default_factory=dict)
-
-    @classmethod
-    def from_api(cls, data: dict[str, Any]) -> UnreadSummary:
-        return cls(
-            total=int(data.get("total", 0)),
-            feed=int(data.get("feed", 0)),
-            dms=int(data.get("dms", 0)),
-            spaces={k: int(v) for k, v in (data.get("spaces") or {}).items()},
         )
